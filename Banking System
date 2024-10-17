@@ -1,0 +1,273 @@
+#ifndef ACCOUNT_H
+#define ACCOUNT_H
+
+#include <iostream>
+#include <string>
+
+class Account
+{
+private:
+    std::string accountHolder;
+    double balance;
+
+public:
+    int accountNumber;
+
+    // Constructor to initialize account
+    Account(int accNumber, std::string holder, double initialBalance);
+
+    // Function to deposit an amount, returns true on success
+    bool deposit(double amount);
+
+    // Function to withdraw an amount, returns true on success (checks for sufficient balance)
+    bool withdraw(double amount);
+
+    // Function to transfer an amount to another account, returns true on success
+    bool transfer(Account &recipient, double amount);
+
+    // Function to display account info
+    void displayAccountInfo() const;
+
+    // Getter for account number
+    int getAccountNumber() const { return accountNumber; }
+
+    // Getter for account holder's name
+    std::string getAccountHolder() const { return accountHolder; }
+
+    // Getter for balance
+    double getBalance() const { return balance; }
+};
+
+#endif // ACCOUNT_H
+
+//account.cpp
+
+
+#include "account.h"
+
+// Constructor
+Account::Account(int accNumber, std::string holder, double initialBalance)
+    :  accountHolder(holder), balance(initialBalance) , accountNumber(accNumber){}
+
+// Deposit method
+bool Account::deposit(double amount) {
+    if (amount > 0) {
+        balance += amount;
+        return true;
+    }
+    return false;
+}
+
+// Withdraw method
+bool Account::withdraw(double amount) {
+    if (amount > 0 && balance >= amount) {
+        balance -= amount;
+        return true;
+    }
+    return false;
+}
+
+// Transfer method
+bool Account::transfer(Account &recipient, double amount) {
+    if (withdraw(amount)) {
+        recipient.deposit(amount);
+        return true;
+    }
+    return false;
+}
+
+// Display account info method
+void Account::displayAccountInfo() const {
+    std::cout << "Account Number: " << accountNumber << std::endl;
+    std::cout << "Account Holder: " << accountHolder << std::endl;
+    std::cout << "Balance: $" << balance << std::endl;
+}
+
+//bankclass.h
+#ifndef BANKCLASS_H
+#define BANKCLASS_H
+
+#include "account.h"
+#include <vector>
+#include <memory>  // for std::shared_ptr
+
+class BankClass
+{
+private:
+    std::vector<std::shared_ptr<Account>> accounts;  // Vector to store pointers to Account objects
+
+public:
+    // Constructor
+    BankClass();
+
+    // Method to create an account, returns true on success
+    bool createAccount(int accNumber, std::string holder, double initialDeposit);
+
+    // Method to get a pointer to an account by account number, returns nullptr if not found
+    Account* getAccount(int accNumber);
+
+    // Method to display all accounts
+    void displayAllAccounts() const;
+};
+
+#endif // BANKCLASS_H
+
+//bankclass.cpp 
+
+#include "bankclass.h"
+
+// Constructor
+BankClass::BankClass() {}
+
+// Create a new account, returns true if successful
+bool BankClass::createAccount(int accNumber, std::string holder, double initialDeposit) {
+    // Check if account number already exists
+    for (const auto &acc : accounts) {
+        if (acc->getAccountNumber() == accNumber) {
+            return false;  // Account number already exists
+        }
+    }
+
+    // Create a new account and add it to the vector
+    accounts.push_back(std::make_shared<Account>(accNumber, holder, initialDeposit));
+    return true;
+}
+
+// Retrieve an account by its number
+Account* BankClass::getAccount(int accNumber) {
+    for (auto &acc : accounts) {
+        if (acc->getAccountNumber() == accNumber) {
+            return acc.get();  // Return the raw pointer from the shared_ptr
+        }
+    }
+    return nullptr;  // Account not found
+}
+
+// Display all accounts in the bank
+void BankClass::displayAllAccounts() const {
+    for (const auto &acc : accounts) {
+        acc->displayAccountInfo();
+        std::cout << "---------------------------" << std::endl;
+    }
+}
+
+//main.cpp
+
+
+#include <iostream>
+#include "bankclass.h"
+#include "account.h"
+using namespace std;
+
+int main() {
+    BankClass bankclass;
+    int choice, accNumber;
+    string name;
+    double amount;
+
+    while (true) {
+        cout << "1. Create Account\n2. Deposit\n3. Withdraw\n4. Transfer\n5. Display Account Info\n6. Display All Accounts\n7. Exit\n";
+        cout << "Enter your choice: ";
+        cin >> choice;
+
+        switch (choice) {
+            case 1:
+                cout << "Enter Account Number: ";
+                cin >> accNumber;
+                cout << "Enter Account Holder Name: ";
+                cin.ignore(); // ignore newline character left in input buffer
+                getline(cin, name); // use getline to read entire line
+                cout << "Enter Initial Deposit: ";
+                cin >> amount;
+                if (bankclass.createAccount(accNumber, name, amount)) {
+                    cout << "Account created successfully!" << endl;
+                } else {
+                    cout << "Account creation failed. Please check for existing account or invalid input." << endl;
+                }
+                break;
+
+            case 2:
+                cout << "Enter Account Number: ";
+                cin >> accNumber;
+                cout << "Enter Amount to Deposit: ";
+                cin >> amount;
+                if (auto account = bankclass.getAccount(accNumber)) {
+                    if (account->deposit(amount)) {
+                        cout << "Deposit successful! New balance: $" << account->getBalance() << endl;
+                    } else {
+                        cout << "Deposit failed. Please check for invalid input." << endl;
+                    }
+                } else {
+                    cout << "Account not found!" << endl;
+                }
+                break;
+
+            case 3:
+                cout << "Enter Account Number: ";
+                cin >> accNumber;
+                cout << "Enter Amount to Withdraw: ";
+                cin >> amount;
+                if (auto account = bankclass.getAccount(accNumber)) {
+                    if (account->withdraw(amount)) {
+                        cout << "Withdrawal successful! New balance: $" << account->getBalance() << endl;
+                    } else {
+                        cout << "Withdrawal failed. Please check for insufficient funds or invalid input." << endl;
+                    }
+                } else {
+                    cout << "Account not found!" << endl;
+                }
+                break;
+
+            case 4:
+                int recipientAccNumber;
+                cout << "Enter Your Account Number: ";
+                cin >> accNumber;
+                cout << "Enter Recipient Account Number: ";
+                cin >> recipientAccNumber;
+                cout << "Enter Amount to Transfer: ";
+                cin >> amount;
+                if (auto sender = bankclass.getAccount(accNumber)) {
+                    if (auto recipient = bankclass.getAccount(recipientAccNumber)) {
+                        if (sender->transfer(*recipient, amount)) {
+                            cout << "Transfer successful! New sender balance: $" << sender->getBalance() << endl;
+                            cout << "New recipient balance: $" << recipient->getBalance() << endl;
+                        } else {
+                            cout << "Transfer failed. Please check for insufficient funds or invalid input." << endl;
+                        }
+                    } else {
+                        cout << "Recipient account not found!" << endl;
+                    }
+                } else {
+                    cout << "Account not found!" << endl;
+                }
+                break;
+
+            case 5:
+                cout << "Enter Account Number: ";
+                cin >> accNumber;
+                if (auto account = bankclass.getAccount(accNumber)) {
+                    account->displayAccountInfo();
+                } else {
+                    cout << "Account not found!" << endl;
+                }
+                break;
+
+            case 6:
+                bankclass.displayAllAccounts();
+                break;
+
+            case 7:
+                cout << "Exiting..." << endl;
+                return 0;
+
+            default:
+                cout << "Invalid choice!" << endl;
+        }
+    }
+
+    return 0;
+}
+
+
+
+
